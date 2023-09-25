@@ -1,0 +1,20 @@
+INPUT:
+  NUM_SAMPLES: 5
+  NUM_FREQUENCIES: 30
+  NUM_EMITTERS: 3
+  NUM_RECEIVERS: 3
+
+
+
+
+
+
+MODEL:
+  META_ARCHITECTURE: "ModalityTransNetwork"
+  BACKBONE:
+    NAME: "build_modality_tran_backbone"
+
+
+DATA:
+  PATH: " "
+
