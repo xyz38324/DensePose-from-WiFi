@@ -1,10 +1,8 @@
-#from detectron2.modeling.meta_arch.build import META_ARCH_REGISTRY
 import torch.nn as nn
 import torch
 from detectron2.config import configurable
-
-
-#@META_ARCH_REGISTRY.register()
+from .build import ModalityTranslationNetwork_REGISTRY
+ModalityTranslationNetwork_REGISTRY.register()
 class ModalityTranslationNetwork(nn.Module):
     '''
 

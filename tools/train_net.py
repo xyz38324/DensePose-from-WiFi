@@ -1,4 +1,4 @@
-from densepose.engine import Trainer
+from engine import Trainer
 from detectron2.engine import default_argument_parser, launch,hooks,default_setup
 from detectron2.config import get_cfg
 from densepose import add_densepose_config
@@ -15,7 +15,12 @@ def setup(args):
 
 def main(args):
     cfg=set(args)
-
+    if args.eval_only:
+        pass
+    
+   
+    
+    
     trainer = Trainer(cfg)
     trainer.resume_or_load(resume=args.resume)
 

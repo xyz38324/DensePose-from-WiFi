@@ -10,9 +10,9 @@ INPUT:
 
 
 MODEL:
-  META_ARCHITECTURE: "ModalityTransNetwork"
-  BACKBONE:
-    NAME: "build_modality_tran_backbone"
+  META_ARCHITECTURE: "CombinedModel"
+  MTN_BACKBONE:
+    NAME: "ModalityTranslationNetwork"
 
 
 DATA:
