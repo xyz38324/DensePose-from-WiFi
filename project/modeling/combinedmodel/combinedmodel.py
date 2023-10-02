@@ -1,5 +1,5 @@
 import torch.nn as nn
-
+from typing import Dict, List, Optional, Tuple
 from .build import Combined_Model_REGISTRY
 from detectron2.modeling import build_backbone, build_proposal_generator,build_roi_heads,Backbone
 from densepose.modeling import build_densepose_head
@@ -77,5 +77,6 @@ class CombinedModel(nn.Module):
         proposals, _ = self.proposal_generator(images, features)
         #results, _, _ = self.roi_heads(images, features, proposals)
         densepose_outputs = self.densepose_head(features, results)
+        #still need to modify loss function
         return densepose_outputs
 
