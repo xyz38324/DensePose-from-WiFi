@@ -1,4 +1,4 @@
-from  engine import Trainer
+from  project.engine import Trainer
 from detectron2.engine import default_argument_parser, launch,hooks,default_setup
 from detectron2.config import get_cfg
 from densepose import add_densepose_config

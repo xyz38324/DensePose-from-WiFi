@@ -13,8 +13,13 @@ MODEL:
   META_ARCHITECTURE: "CombinedModel"
   MTN_BACKBONE:
     NAME: "ModalityTranslationNetwork"
-
+  ROI_HEADS:
+    NAME: "Keypoint_DensePose_Head"
 
 DATA:
   PATH: " "
+
+CSI:
+  MEAN: ""
+  STD: " "
 

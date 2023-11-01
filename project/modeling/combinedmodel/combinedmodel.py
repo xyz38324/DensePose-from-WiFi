@@ -1,10 +1,15 @@
 import torch.nn as nn
+import torch
 from typing import Dict, List, Optional, Tuple
 from .build import Combined_Model_REGISTRY
 from detectron2.modeling import build_backbone, build_proposal_generator,build_roi_heads,Backbone
 from densepose.modeling import build_densepose_head
 from detectron2.config import configurable
 from ..mtn.build import build_mtn
+from ...preprocessing import preprocess
+from detectron2.structures import ImageList, Instances
+from detectron2.utils.events import get_event_storage
+
 @Combined_Model_REGISTRY.register()
 class CombinedModel(nn.Module):
     """
@@ -28,18 +33,19 @@ class CombinedModel(nn.Module):
         pixel_mean: Tuple[float],
         pixel_std: Tuple[float],
         input_format: Optional[str] = None,
-        vis_period: int = 0,
+        #vis_period: int = 0,
+        csi_mean:Tuple[float],
+        csi_std:Tuple[float],
     ):
         super().__init__()
         self.mtn =  mtn      
         self.backbone = backbone
-        self.proposal_generator = proposal_generator
         self.roi_heads = roi_heads
 
         self.input_format = input_format
-        self.vis_period = vis_period
-        if vis_period > 0:
-            assert input_format is not None, "input_format is required for visualization!"
+        #self.vis_period = vis_period
+        # if vis_period > 0:
+        #     assert input_format is not None, "input_format is required for visualization!"
 
         self.register_buffer("pixel_mean", torch.tensor(pixel_mean).view(-1, 1, 1), False)
         self.register_buffer("pixel_std", torch.tensor(pixel_std).view(-1, 1, 1), False)
@@ -47,13 +53,10 @@ class CombinedModel(nn.Module):
             self.pixel_mean.shape == self.pixel_std.shape
         ), f"{self.pixel_mean} and {self.pixel_std} have different shapes!"
       
-        
-        
-        self.modality_translation_network = mtn
-        self.backbone = build_backbone(cfg)  # or build_resnet_backbone(cfg) depending on your needs
-        self.proposal_generator = build_proposal_generator(cfg, self.backbone.output_shape())
-        
-        self.densepose_head = build_densepose_head(cfg)
+        self.register_buffer("csi_mean", torch.tensor(pixel_mean).view(-1, 1, 1), False)
+        self.register_buffer("csi_std", torch.tensor(pixel_std).view(-1, 1, 1), False)
+        #the shape of this attribute need to change later!!!!
+  
        
        
     @classmethod
@@ -62,21 +65,65 @@ class CombinedModel(nn.Module):
         return {
             "mtn":build_mtn,
             "backbone": backbone,
-            "proposal_generator": build_proposal_generator(cfg, backbone.output_shape()),
             "roi_heads": build_roi_heads(cfg, backbone.output_shape()),
             "input_format": cfg.INPUT.FORMAT,
             "vis_period": cfg.VIS_PERIOD,
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
             "pixel_std": cfg.MODEL.PIXEL_STD,
+            "csi_mean":cfg.CSI.MEAN,
+            "csi_std":cfg.CSI_STD,
         }
      
     def forward(self, batched_inputs):
-        csi_data = [x["csi"] for x in batched_inputs]
-        images = self.modality_translation_network(csi_data)
+        if not self.training:
+            return self.inference(batched_inputs)
+        csi = self.preprocess_csi(batched_inputs)#process csi to proper shape 
+        mtn_output = self.mtn(csi)
+        assert mtn_output.shape == (3, 720, 1080), f"Unexpected output shape: {mtn_output.shape}"
+        
+        images = self.preprocess_image(mtn_output)# normalization
+        
+        
+        #gt_instances = None
         features = self.backbone(images.tensor)
-        proposals, _ = self.proposal_generator(images, features)
-        #results, _, _ = self.roi_heads(images, features, proposals)
-        densepose_outputs = self.densepose_head(features, results)
-        #still need to modify loss function
-        return densepose_outputs
+        assert "proposals" in batched_inputs[0]
+        proposals = [x["proposals"].to(self.device) for x in batched_inputs]
+        proposal_losses = {}
+        
+        _, detector_losses = self.roi_heads(images, features, proposals, gt_instances)
+      
+        losses = {}
+        losses.update(detector_losses)
+       
+        return losses
+       
+       
+        
 
+        
+        
+        
+        
+        
+        
+        
+
+    def preprocess_csi(self,batch_inputs:List[Dict[str,torch.Tensor]]):#input should be batch or single rgb data?
+        mean = self.csi_mean
+        std = self.csi_std
+        #return data should be tensor shape
+        return csi
+        pass
+    
+    def preprocess_image(self,csi_rgb: torch.Tensor):#
+        assert csi_rgb.shape == (3, 720, 1080)
+        images = ImageList.from_tensors(
+            csi_rgb,
+            self.backbone.size_divisibility,
+            padding_constraints=self.backbone.padding_constraints,#think about it later 
+        )
+        return images
+        
+    
+    def inference(self,):
+        pass

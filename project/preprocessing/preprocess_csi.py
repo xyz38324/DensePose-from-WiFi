@@ -1,4 +1,4 @@
-def preprocess(raw_data,cfg):
+def preprocess(batch_inputs,cfg):
 
     path  = cfg.DATA.PATH
     

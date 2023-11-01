@@ -5,7 +5,8 @@ from .build import ModalityTranslationNetwork_REGISTRY
 ModalityTranslationNetwork_REGISTRY.register()
 class ModalityTranslationNetwork(nn.Module):
     '''
-
+    input data should be [5,     30,       3,       3]
+                         [batch,frequency,emitter,receiiver]
     convert csi matrix to spatial domain(3*720*720)
 
     '''
@@ -38,27 +39,27 @@ class ModalityTranslationNetwork(nn.Module):
         # Define the convolution blocks
         self.conv_blocks = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=3, stride=2, padding=1), 
-            nn.ReLU(),
+            #nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),  # Output size: 6x6
             
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),  # Output size: 64*6x6
-            nn.ReLU(),
+            #nn.ReLU(),
         )
         
         # Define the deconvolution layers
         self.deconv_layers = nn.Sequential(           
             nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, output_padding=1),  # Output: 32x12x12
-            nn.ReLU(),
+            #nn.ReLU(),
             nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1, output_padding=1),  # Output: 16x24x24
-            nn.ReLU(),
+            #nn.ReLU(),
             nn.ConvTranspose2d(16, 8, kernel_size=3, stride=2, padding=1, output_padding=1),   # Output: 8x48x48
-            nn.ReLU(),
+            #nn.ReLU(),
             nn.ConvTranspose2d(8, 4, kernel_size=3, stride=2, padding=1, output_padding=1),    # Output: 4x96x96
-            nn.ReLU(),
+            #nn.ReLU(),
             nn.ConvTranspose2d(4, 3, kernel_size=3, stride=4, padding=1, output_padding=1),    # Output: 3x384x384
-            nn.ReLU(),
+            #nn.ReLU(),
             nn.ConvTranspose2d(3, 3, kernel_size=3, stride=2, padding=1, output_padding=1),    # Output: 3x768x768
-            nn.ReLU(),
+            #nn.ReLU(),
             nn.ConvTranspose2d(3, 3, kernel_size=3, stride=2, padding=1, output_padding=1)     # Output: 3x1536x1536
         )
 
@@ -78,5 +79,11 @@ class ModalityTranslationNetwork(nn.Module):
         
         # Process through deconvolution layers
         deconv_output = self.deconv_layers(conv_output)
+        # For a center crop
+        start_dim3 = (deconv_output.size(2) - 720) // 2  # Center crop in dim3
+        start_dim4 = (deconv_output.size(3) - 1080) // 2  # Center crop in dim4
+
+        cropped_tensor = deconv_output[:, :, start_dim3:start_dim3+720, start_dim4:start_dim4+1080]
+
         
-        return deconv_output
+        return cropped_tensor
