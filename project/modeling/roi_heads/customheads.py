@@ -24,17 +24,15 @@ class CustomKeypointHead(KRCNNConvDeconvUpsampleHead):
     def forward(self, x, instances: List[Instances]):
         
             
-        if self.training:
-            num_images = len(instances)
-            normalizer = (
-                None if self.loss_normalizer == "visible" else num_images * self.loss_normalizer
-            )
-            loss = keypoint_rcnn_loss(x, instances, normalizer=normalizer) * self.loss_weight
-            # Return both the loss and the predictions
-            return {
-                "keypoint_logits": x,  # or apply a softmax here if  want probabilities
-                "loss_keypoint": loss
-            }
-        else:
-            # Inference mode, return predictions
-            return keypoint_rcnn_inference(x, instances)
+        
+        num_images = len(instances)
+        normalizer = (
+            None if self.loss_normalizer == "visible" else num_images * self.loss_normalizer
+        )
+      
+        return {
+            "keypoint_logits": x,  # or apply a softmax here if  want probabilities
+            "normalizer":normalizer,
+            "loss_weight":self.loss_weight
+        }
+        

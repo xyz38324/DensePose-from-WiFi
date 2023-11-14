@@ -14,6 +14,8 @@ from detectron2.modeling.roi_heads import build_box_head
 from detectron2.modeling.roi_heads.roi_heads import select_proposals_with_visible_keypoints
 from detectron2.modeling import FastRCNNOutputLayers
 from .customheads import build_keypoint_head
+from .refinement import CombinedRefinement
+
 from densepose.modeling import (
     build_densepose_data_filter,
     build_densepose_embedder,
@@ -52,6 +54,10 @@ class WiFi_ROI_Head(ROIHeads):
         self.keypoint_head = keypoint_head
         self._init_densepose_head(cfg,input_shape)
         self._init_keypoint_head(cfg,input_shape)
+
+        dp_channels = 25
+        kp_channels = cfg.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS#17
+        self.refinement_unit = CombinedRefinement(dp_channels, kp_channels)
 
         self.train_on_pred_boxes = train_on_pred_boxes
     @classmethod
@@ -199,10 +205,8 @@ class WiFi_ROI_Head(ROIHeads):
                 features_dp = self.densepose_pooler(features_list, proposal_boxes)
                 densepose_head_outputs = self.densepose_head(features_dp)
                 densepose_predictor_outputs = self.densepose_predictor(densepose_head_outputs)
-                densepose_loss_dict = self.densepose_losses(
-                    proposals, densepose_predictor_outputs, embedder=self.embedder
-                )
-                return densepose_predictor_outputs,densepose_loss_dict
+                
+                return densepose_predictor_outputs,proposals,self.embedder
         else:
             pred_boxes = [x.pred_boxes for x in instances]
 
@@ -216,8 +220,8 @@ class WiFi_ROI_Head(ROIHeads):
             else:
                 densepose_predictor_outputs = None
 
-            densepose_inference(densepose_predictor_outputs, instances)
-            return instances
+           
+            return densepose_predictor_outputs,proposals,self.embedder
 
     def _forward_box(self, features: Dict[str, torch.Tensor], proposals: List[Instances]):
         """
@@ -274,9 +278,11 @@ class WiFi_ROI_Head(ROIHeads):
 
         if self.training:
 
-            instance_kp,loss_kp=self._forward_keypoint(features, proposals)
+            instance_kp,normalizer_kp,lossweight_kp,raw_instance_kp=self._forward_keypoint(features, proposals)
             del targets, images
-            instance_dp,loss_dp = self._forward_densepose(features,proposals) 
+            instance_dp,raw_instance_dp,embedder_dp = self._forward_densepose(features,proposals) 
+
+            refined_dp, refined_kp=self.refinement_unit(instance_dp,instance_kp,normalizer_kp,lossweight_kp,raw_instance_kp,raw_instance_dp,embedder_dp)
 
             
 
