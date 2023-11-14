@@ -2,7 +2,8 @@ import torch.nn as nn
 import torch
 from typing import Dict, List, Optional, Tuple
 from .build import Combined_Model_REGISTRY
-from detectron2.modeling import build_backbone, build_proposal_generator,build_roi_heads,Backbone
+from detectron2.modeling import build_backbone, build_proposal_generator,Backbone
+from ..roi_heads import build_roi_heads
 from densepose.modeling import build_densepose_head
 from detectron2.config import configurable
 from ..mtn.build import build_mtn
@@ -65,6 +66,7 @@ class CombinedModel(nn.Module):
         return {
             "mtn":build_mtn,
             "backbone": backbone,
+            "proposal_generator": build_proposal_generator(cfg, backbone.output_shape()),
             "roi_heads": build_roi_heads(cfg, backbone.output_shape()),
             "input_format": cfg.INPUT.FORMAT,
             "vis_period": cfg.VIS_PERIOD,
@@ -84,16 +86,33 @@ class CombinedModel(nn.Module):
         images = self.preprocess_image(mtn_output)# normalization
         
         
-        #gt_instances = None
+        if "instances" in batched_inputs[0]:
+            gt_instances = [x["instances"].to(self.device) for x in batched_inputs]
+        else:
+            gt_instances = None
+
+
         features = self.backbone(images.tensor)
-        assert "proposals" in batched_inputs[0]
-        proposals = [x["proposals"].to(self.device) for x in batched_inputs]
-        proposal_losses = {}
+        """{
+            "p2": <tensor of shape [batch_size, out_channels, H/4, W/4]>,
+            "p3": <tensor of shape [batch_size, out_channels, H/8, W/8]>,
+            "p4": <tensor of shape [batch_size, out_channels, H/16, W/16]>,
+            ...
+        }
+        """
+
+        if self.proposal_generator is not None:
+            proposals, proposal_losses = self.proposal_generator(images, features, gt_instances)
+        else:
+            assert "proposals" in batched_inputs[0]
+            proposals = [x["proposals"].to(self.device) for x in batched_inputs]
+            proposal_losses = {}
         
         _, detector_losses = self.roi_heads(images, features, proposals, gt_instances)
       
         losses = {}
         losses.update(detector_losses)
+        losses.update(proposal_losses)
        
         return losses
        
@@ -127,3 +146,7 @@ class CombinedModel(nn.Module):
     
     def inference(self,):
         pass
+
+    @property
+    def device(self):
+        return self.pixel_mean.device

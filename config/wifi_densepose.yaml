@@ -13,9 +13,14 @@ MODEL:
   META_ARCHITECTURE: "CombinedModel"
   MTN_BACKBONE:
     NAME: "ModalityTranslationNetwork"
+  ROI_KEYPOINT_HEAD:
+    NAME: "CustomKeypointHead"
   ROI_HEADS:
     NAME: "Keypoint_DensePose_Head"
 
+  BOX_ON: False
+  KEYPOINT_ON: True
+  MASK_ON: False
 DATA:
   PATH: " "
 
