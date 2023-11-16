@@ -9,7 +9,7 @@ The call should return a `nn.Module` object.
 """
 
 
-def build_model(cfg):
+def build_student_model(cfg):
     """
     Build the whole model architecture, defined by ``cfg.MODEL.META_ARCHITECTURE``.
     Note that it does not load any weights from ``cfg``.

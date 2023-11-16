@@ -282,16 +282,17 @@ class WiFi_ROI_Head(ROIHeads):
             del targets, images
             instance_dp,raw_instance_dp,embedder_dp = self._forward_densepose(features,proposals) 
 
-            refined_dp, refined_kp=self.refinement_unit(instance_dp,instance_kp,normalizer_kp,lossweight_kp,raw_instance_kp,raw_instance_dp,embedder_dp)
-
+            loss_kp,loss_dp=self.refinement_unit(instance_dp,instance_kp,normalizer_kp,lossweight_kp,raw_instance_kp,raw_instance_dp,embedder_dp)
+            return loss_kp,loss_dp
             
+      
 
 
 
             
             
         
-        return instances, losses
+        
       
 
     def forward_with_given_boxes(

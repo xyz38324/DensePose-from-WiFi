@@ -33,6 +33,7 @@ class CustomKeypointHead(KRCNNConvDeconvUpsampleHead):
         return {
             "keypoint_logits": x,  # or apply a softmax here if  want probabilities
             "normalizer":normalizer,
-            "loss_weight":self.loss_weight
+            "loss_weight":self.loss_weight,
+            "raw_instances":instances
         }
         

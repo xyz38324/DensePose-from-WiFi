@@ -1,2 +1,2 @@
-from .combinedmodel import build_model
+from .combinedmodel import build_student_model
 

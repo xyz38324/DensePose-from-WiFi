@@ -100,7 +100,7 @@ class CombinedModel(nn.Module):
             ...
         }
         """
-
+        
         if self.proposal_generator is not None:
             proposals, proposal_losses = self.proposal_generator(images, features, gt_instances)
         else:
@@ -114,7 +114,7 @@ class CombinedModel(nn.Module):
         losses.update(detector_losses)
         losses.update(proposal_losses)
        
-        return losses
+        return losses, features
        
        
         

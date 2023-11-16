@@ -1,4 +1,4 @@
-from  project.engine import Trainer
+from  .project.engine import MyTrainer
 from detectron2.engine import default_argument_parser, launch,hooks,default_setup
 from detectron2.config import get_cfg
 from densepose import add_densepose_config
@@ -24,7 +24,7 @@ def main(args):
    
     
     
-    trainer = Trainer(cfg)
+    trainer = MyTrainer(cfg)
     trainer.resume_or_load(resume=args.resume)
 
     return trainer.train()

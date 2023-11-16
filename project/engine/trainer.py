@@ -1,22 +1,14 @@
-from detectron2.engine import DefaultTrainer
-from ..modeling import build_model
-import logging
+
+from densepose.engine import Trainer
+from ..modeling import build_student_model
+
+
 from detectron2.config import CfgNode
 from torch import nn
-class Trainer(DefaultTrainer):
-
+class MyTrainer(Trainer):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self.student_model=build_student_model(cfg)
+        for param in self.m
      
-     
-    @classmethod
-    def build_model(cls, cfg):
-        
-        model = build_model(cfg)
-        logger = logging.getLogger(__name__)
-        logger.info("Model:\n{}".format(model))
-        return model
-    def build_evaluator():
-        pass
-    def build_train_loader(cls, cfg: CfgNode):
-        pass 
-    def build_optimizer(cls, cfg: CfgNode, model: nn.Module):
-        pass
+  
