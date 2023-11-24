@@ -10,7 +10,9 @@ INPUT:
 
 
 MODEL:
-  META_ARCHITECTURE: "CombinedModel"
+  COMBINED_MODEL: "CombinedModel"
+  STUDENT_MODEL: "StudentModel"
+  TEACHER_MODEL: "TeacherModel"
   MTN_BACKBONE:
     NAME: "ModalityTranslationNetwork"
   ROI_KEYPOINT_HEAD:

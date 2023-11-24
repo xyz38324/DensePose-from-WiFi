@@ -1,1 +1,1 @@
-from .build import build_student_model
+from .build import build_combined_model
