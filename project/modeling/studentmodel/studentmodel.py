@@ -10,7 +10,9 @@ from ..mtn.build import build_mtn
 from ...preprocessing import preprocess
 from detectron2.structures import ImageList, Instances
 from detectron2.utils.events import get_event_storage
-
+from ..roi_heads import build_dp_kp_rf_head
+from ..teachermodel import build_teacher_model
+import torch.nn.functional as F
 @Student_Model_REGISTRY.register()
 class StudentModel(nn.Module):
     """
@@ -37,6 +39,7 @@ class StudentModel(nn.Module):
         #vis_period: int = 0,
         csi_mean:Tuple[float],
         csi_std:Tuple[float],
+        teacher_model:nn.Module,
     ):
         super().__init__()
         self.mtn =  mtn      
@@ -57,42 +60,46 @@ class StudentModel(nn.Module):
         self.register_buffer("csi_mean", torch.tensor(pixel_mean).view(-1, 1, 1), False)
         self.register_buffer("csi_std", torch.tensor(pixel_std).view(-1, 1, 1), False)
         #the shape of this attribute need to change later!!!!
-  
+        self.teacher_model = teacher_model
        
        
     @classmethod
     def from_config(cls,cfg):
         backbone = build_backbone(cfg)
+        teacher_model= build_teacher_model(cfg)
         return {
             "mtn":build_mtn,
             "backbone": backbone,
             "proposal_generator": build_proposal_generator(cfg, backbone.output_shape()),
-            "roi_heads": build_roi_heads(cfg, backbone.output_shape()),
+            "roi_heads": build_dp_kp_rf_head(cfg, backbone.output_shape()),
             "input_format": cfg.INPUT.FORMAT,
             "vis_period": cfg.VIS_PERIOD,
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
             "pixel_std": cfg.MODEL.PIXEL_STD,
             "csi_mean":cfg.CSI.MEAN,
             "csi_std":cfg.CSI_STD,
+            "teacher_model":teacher_model,
         }
      
-    def forward(self, batched_inputs):
+    def forward(self, csi_intput,image_input):
         if not self.training:
-            return self.inference(batched_inputs)
-        csi = self.preprocess_csi(batched_inputs)#process csi to proper shape 
+            return self.inference(csi_intput)
+        csi = self.preprocess_csi(csi_intput)#process csi to proper shape 
         mtn_output = self.mtn(csi)
         assert mtn_output.shape == (3, 720, 1080), f"Unexpected output shape: {mtn_output.shape}"
         
-        images = self.preprocess_image(mtn_output)# normalization
+        csi_images = self.preprocess_image(mtn_output)# normalization
         
         
-        if "instances" in batched_inputs[0]:
-            gt_instances = [x["instances"].to(self.device) for x in batched_inputs]
+        if "instances" in csi_intput[0]:
+            gt_instances = [x["instances"].to(self.device) for x in csi_intput]
         else:
             gt_instances = None
 
 
-        features = self.backbone(images.tensor)
+        features = self.backbone(csi_images.tensor)
+        features_teacher = self.teacher_model(image_input)
+        transfer_loss = self._calculate_transfer_learning_loss(features_teacher,features)
         """{
             "p2": <tensor of shape [batch_size, out_channels, H/4, W/4]>,
             "p3": <tensor of shape [batch_size, out_channels, H/8, W/8]>,
@@ -102,18 +109,19 @@ class StudentModel(nn.Module):
         """
         
         if self.proposal_generator is not None:
-            proposals, proposal_losses = self.proposal_generator(images, features, gt_instances)
+            proposals, proposal_losses = self.proposal_generator(csi_images, features, gt_instances)
         else:
-            assert "proposals" in batched_inputs[0]
-            proposals = [x["proposals"].to(self.device) for x in batched_inputs]
+            assert "proposals" in csi_images[0]
+            proposals = [x["proposals"].to(self.device) for x in csi_images]
             proposal_losses = {}
         
-        loss_kp,loss_dp = self.roi_heads(images, features, proposals, gt_instances)
+        _,detector_losses = self.roi_heads(csi_images, features, proposals, gt_instances)
       
         losses = {}
-        losses.update(loss_kp)
-        losses.update(loss_dp)
+        
+        losses.update(transfer_loss)
         losses.update(proposal_losses)
+        losses.update(detector_losses)
        
         return losses, features
        
@@ -124,7 +132,14 @@ class StudentModel(nn.Module):
         
         
         
-        
+    def _calculate_transfer_learning_loss(teacher_features, student_features):
+        loss = 0.0
+        for key in ['P2', 'P3', 'P4', 'P5']:
+            teacher_feature = teacher_features[key]
+            student_feature = student_features[key]
+            loss += F.mse_loss(student_feature, teacher_feature)
+
+        return loss
         
         
 

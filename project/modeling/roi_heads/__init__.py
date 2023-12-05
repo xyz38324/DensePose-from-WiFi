@@ -1,1 +1,1 @@
-from .build import build_roi_heads
+from .build import build_dp_kp_rf_head

@@ -1,4 +1,4 @@
-from .build import ROI_2_HEADS_REGISTRY
+from .build import build_dp_kp_rf_head
 from typing import Dict, List, Optional
 from torch import nn
 import torch
@@ -13,8 +13,8 @@ from detectron2.layers import ShapeSpec
 from detectron2.modeling.roi_heads import build_box_head
 from detectron2.modeling.roi_heads.roi_heads import select_proposals_with_visible_keypoints
 from detectron2.modeling import FastRCNNOutputLayers
-from .customheads import build_keypoint_head
-from .refinement import CombinedRefinement
+from .build import build_dp_kp_rf_head
+f
 
 from densepose.modeling import (
     build_densepose_data_filter,
@@ -29,44 +29,30 @@ from densepose.modeling import (
 
 class WiFi_ROI_Head(ROIHeads):
     @configurable
-    def __init__(
-        self,
-        cfg,
-        input_shape,
-        box_in_features: List[str],
-        box_pooler: ROIPooler,
-        box_head: nn.Module,
-        box_predictor: nn.Module,
-        keypoint_in_features: Optional[List[str]] = None,
-        keypoint_pooler: Optional[ROIPooler] = None,
-        keypoint_head: Optional[nn.Module] = None,
-        train_on_pred_boxes: bool = False,
-    ):
+    def __init__(self,cfg,input_shape):
         super.__init__(cfg,input_shape)
+        self._init_kp_dp_rf_head(cfg,input_shape)
 
-        self.in_features = self.box_in_features = box_in_features
-        self.box_pooler = box_pooler
-        self.box_head = box_head
-        self.box_predictor = box_predictor
 
-        self.keypoint_in_features = keypoint_in_features
-        self.keypoint_pooler = keypoint_pooler
-        self.keypoint_head = keypoint_head
-        self._init_densepose_head(cfg,input_shape)
-        self._init_keypoint_head(cfg,input_shape)
+        
 
-        dp_channels = 25
-        kp_channels = cfg.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS#17
-        self.refinement_unit = CombinedRefinement(dp_channels, kp_channels)
 
-        self.train_on_pred_boxes = train_on_pred_boxes
-    @classmethod
-    def from_config(cls, cfg, input_shape):
-        ret =  super().from_config(cfg)
-        ret["train_on_pred_boxes"] = cfg.MODEL.ROI_BOX_HEAD.TRAIN_ON_PRED_BOXES
-        ret.update(cls._init_box_head(cfg, input_shape))
-        ret.update(cls._init_keypoint_head(cfg, input_shape))
-
+   
+    def _init_kp_dp_rf_head(self,cfg,input_shape):
+        
+        self.densepose_data_filter = build_densepose_data_filter(cfg)
+        dp_pooler_resolution       = cfg.MODEL.ROI_DENSEPOSE_HEAD.POOLER_RESOLUTION
+        dp_pooler_sampling_ratio   = cfg.MODEL.ROI_DENSEPOSE_HEAD.POOLER_SAMPLING_RATIO
+        dp_pooler_type             = cfg.MODEL.ROI_DENSEPOSE_HEAD.POOLER_TYPE
+        self.use_decoder           = cfg.MODEL.ROI_DENSEPOSE_HEAD.DECODER_ON
+        dp_pooler_scales = tuple(1.0 / input_shape[k].stride for k in self.in_features)
+        self.densepose_pooler = ROIPooler(
+            output_size=dp_pooler_resolution,
+            scales=dp_pooler_scales,
+            sampling_ratio=dp_pooler_sampling_ratio,
+            pooler_type=dp_pooler_type,
+        )
+        self.kp_dp_rf_head = build_dp_kp_rf_head(cfg,input_shape)
     @classmethod
     def _init_box_head(cls, cfg, input_shape):
         # fmt: off
@@ -104,72 +90,7 @@ class WiFi_ROI_Head(ROIHeads):
             "box_predictor": box_predictor,
         }
 
-    @classmethod
-    def _init_keypoint_head(cls, cfg, input_shape):
-            if not cfg.MODEL.KEYPOINT_ON:
-                return {}
-            # fmt: off
-            in_features       = cfg.MODEL.ROI_HEADS.IN_FEATURES
-            pooler_resolution = cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_RESOLUTION
-            pooler_scales     = tuple(1.0 / input_shape[k].stride for k in in_features)  # noqa
-            sampling_ratio    = cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_SAMPLING_RATIO
-            pooler_type       = cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_TYPE
-            # fmt: on
-
-            in_channels = [input_shape[f].channels for f in in_features][0]
-
-            ret = {"keypoint_in_features": in_features}
-            ret["keypoint_pooler"] = (
-                ROIPooler(
-                    output_size=pooler_resolution,
-                    scales=pooler_scales,
-                    sampling_ratio=sampling_ratio,
-                    pooler_type=pooler_type,
-                )
-                if pooler_type
-                else None
-            )
-            if pooler_type:
-                shape = ShapeSpec(
-                    channels=in_channels, width=pooler_resolution, height=pooler_resolution
-                )
-            else:
-                shape = {f: input_shape[f] for f in in_features}
-            ret["keypoint_head"] = build_keypoint_head(cfg, shape)
-            return ret
-
-    def _init_densepose_head(self, cfg, input_shape):
-        # fmt: off
-        self.densepose_on          = cfg.MODEL.DENSEPOSE_ON
-        if not self.densepose_on:
-            return
-        self.densepose_data_filter = build_densepose_data_filter(cfg)
-        dp_pooler_resolution       = cfg.MODEL.ROI_DENSEPOSE_HEAD.POOLER_RESOLUTION
-        dp_pooler_sampling_ratio   = cfg.MODEL.ROI_DENSEPOSE_HEAD.POOLER_SAMPLING_RATIO
-        dp_pooler_type             = cfg.MODEL.ROI_DENSEPOSE_HEAD.POOLER_TYPE
-        self.use_decoder           = cfg.MODEL.ROI_DENSEPOSE_HEAD.DECODER_ON
-        # fmt: on
-        if self.use_decoder:
-            dp_pooler_scales = (1.0 / input_shape[self.in_features[0]].stride,)
-        else:
-            dp_pooler_scales = tuple(1.0 / input_shape[k].stride for k in self.in_features)
-        in_channels = [input_shape[f].channels for f in self.in_features][0]
-
-        if self.use_decoder:
-            self.decoder = Decoder(cfg, input_shape, self.in_features)
-
-        self.densepose_pooler = ROIPooler(
-            output_size=dp_pooler_resolution,
-            scales=dp_pooler_scales,
-            sampling_ratio=dp_pooler_sampling_ratio,
-            pooler_type=dp_pooler_type,
-        )
-        self.densepose_head = build_densepose_head(cfg, in_channels)
-        self.densepose_predictor = build_densepose_predictor(
-            cfg, self.densepose_head.n_out_channels
-        )
-        self.densepose_losses = build_densepose_losses(cfg)
-        self.embedder = build_densepose_embedder(cfg)
+   
 
     def _forward_densepose(self, features: Dict[str, torch.Tensor], instances: List[Instances]):
         """
@@ -276,16 +197,36 @@ class WiFi_ROI_Head(ROIHeads):
             proposals = self.label_and_sample_proposals(proposals, targets)
         del targets
 
+
+        features_list = [features[f] for f in self.in_features]
         if self.training:
 
-            instance_kp,normalizer_kp,lossweight_kp,raw_instance_kp=self._forward_keypoint(features, proposals)
-            del targets, images
-            instance_dp,raw_instance_dp,embedder_dp = self._forward_densepose(features,proposals) 
+            instances,_ = select_foreground_proposals(proposals,self.num_classes)
 
-            loss_kp,loss_dp=self.refinement_unit(instance_dp,instance_kp,normalizer_kp,lossweight_kp,raw_instance_kp,raw_instance_dp,embedder_dp)
-            return loss_kp,loss_dp
+            features_list,instances_densepose = self.densepose_data_filter(features_list,instances)
+            instances_densepose_keypoint = select_proposals_with_visible_keypoints(instances_densepose)
+            boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances_densepose_keypoint]
+
+            features_pooler = self.densepose_pooler(features_list, boxes)
+           
+            del targets, images
+            instances_densepose_keypoint,losses = self.kp_dp_rf_head(features_pooler,instances_densepose_keypoint)
+        return instances_densepose_keypoint,losses
+
+
+        
+           
+
+
+
+
+
+
+
+
             
-      
+
+          
 
 
 

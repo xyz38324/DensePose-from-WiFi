@@ -18,9 +18,12 @@ Registry for keypoint heads, which make keypoint predictions from per-region fea
 The registered object will be called with `obj(cfg, input_shape)`.
 """
 
-def build_keypoint_head(cfg, input_shape):
-    """
-    Build a keypoint head from `cfg.MODEL.ROI_KEYPOINT_HEAD.NAME`.
-    """
-    name = cfg.MODEL.ROI_KEYPOINT_HEAD.NAME
-    return ROI_KEYPOINT_HEAD_REGISTRY.get(name)(cfg, input_shape)
+
+
+KP_DP_RF_HEAD_REGISTRY=Registry("KP_DP_RF_HEAD")
+KP_DP_RF_HEAD_REGISTRY.__doc__="""
+"""
+def build_dp_kp_rf_head(cfg,input_shape):
+
+    name = cfg.MODEL.KP_DP_RF_HEAD.NAME
+    return KP_DP_RF_HEAD_REGISTRY.get(name)(cfg, input_shape)
