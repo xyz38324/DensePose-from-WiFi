@@ -1,5 +1,6 @@
 from detectron2.utils.registry import Registry
-Student_Model_REGISTRY=Registry("Combine_Model")
+import torch
+Student_Model_REGISTRY=Registry("Student_Model")
 Student_Model_REGISTRY.__doc__="""
 Registry for Combined_Model, which contains ModalityTranslationNetwork and Densepose architecture,
 i.e. the whole model.

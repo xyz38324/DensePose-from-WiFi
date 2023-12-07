@@ -1,5 +1,6 @@
 from detectron2.utils.registry import Registry
-Teacher_Model_REGISTRY=Registry("Combine_Model")
+import torch
+Teacher_Model_REGISTRY=Registry("Teacher_Model")
 Teacher_Model_REGISTRY.__doc__="""
 
 """

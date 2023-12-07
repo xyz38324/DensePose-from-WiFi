@@ -7,7 +7,9 @@ from detectron2.structures import Instances
 from densepose.modeling import build_densepose_head,build_densepose_losses,build_densepose_predictor,build_densepose_embedder
 from densepose.modeling import densepose_inference
 from detectron2.config import configurable
+from .build import KP_DP_RF_HEAD_REGISTRY
 
+@KP_DP_RF_HEAD_REGISTRY.register()
 class Kp_Dp_Refinement_Head(KRCNNConvDeconvUpsampleHead):
     @configurable
     def __init__(
@@ -16,7 +18,7 @@ class Kp_Dp_Refinement_Head(KRCNNConvDeconvUpsampleHead):
         input_shape,
         densepose_head,
         densepose_predictor,
-        num_keypoints=17,
+        num_keypoints,
         conv_dims,
         densepose_loss,
         **kwargs

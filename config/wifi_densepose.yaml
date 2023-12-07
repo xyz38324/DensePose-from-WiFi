@@ -1,32 +1,11 @@
-INPUT:
-  NUM_SAMPLES: 5
-  NUM_FREQUENCIES: 30
-  NUM_EMITTERS: 3
-  NUM_RECEIVERS: 3
-
-
-
-
-
-
 MODEL:
-  COMBINED_MODEL: "CombinedModel"
-  STUDENT_MODEL: "StudentModel"
-  TEACHER_MODEL: "TeacherModel"
-  MTN_BACKBONE:
+  
+  STUDENT_MODEL: "StudentModel"  
+  BACKBONE:
+    NAME: "build_resnet_fpn_backbone" 
+  TEACHER_MODEL: "TeacherModel" 
+  MTN:
     NAME: "ModalityTranslationNetwork"
-  ROI_KEYPOINT_HEAD:
-    NAME: "CustomKeypointHead"
-  ROI_HEADS:
-    NAME: "Keypoint_DensePose_Head"
-
-  BOX_ON: False
-  KEYPOINT_ON: True
-  MASK_ON: False
-DATA:
-  PATH: " "
-
-CSI:
-  MEAN: ""
-  STD: " "
+  KP_DP_RF_HEAD.NAME:
+    NAME: "Kp_Dp_Refinement_Head"
 
