@@ -10,10 +10,11 @@ from ..mtn.build import build_mtn
 
 from detectron2.structures import ImageList,Instances
 
-from ..roi_heads import build_dp_kp_rf_head
+from ..roi_heads import build_roi_head
 from ..teachermodel import build_teacher_model
 import torch.nn.functional as F
 from detectron2.modeling import GeneralizedRCNN
+from detectron2.utils.events import get_event_storage
 @Student_Model_REGISTRY.register()
 class StudentModel(GeneralizedRCNN):
     """
@@ -45,6 +46,7 @@ class StudentModel(GeneralizedRCNN):
         super().__init__()
         self.mtn =  mtn      
         self.backbone = backbone
+        self.proposal_generator = proposal_generator
         self.roi_heads = roi_heads
 
         self.input_format = input_format
@@ -71,7 +73,7 @@ class StudentModel(GeneralizedRCNN):
             "mtn":build_mtn,
             "backbone": backbone,
             "proposal_generator": build_proposal_generator(cfg, backbone.output_shape()),
-            "roi_heads": build_dp_kp_rf_head(cfg, backbone.output_shape()),
+            "roi_heads": build_roi_head(cfg, backbone.output_shape()),
             "input_format": cfg.INPUT.FORMAT,
             "vis_period": cfg.VIS_PERIOD,
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
@@ -98,7 +100,7 @@ class StudentModel(GeneralizedRCNN):
         mtn_output = self.mtn(csi)
         assert mtn_output.shape == (3, 720, 1080), f"Unexpected output shape: {mtn_output.shape}"
 
-   
+        mtn_output = self.preprocess_mtn(batched_inputs)
         images = self.preprocess_image(batched_inputs)# normalization
         # csi_images = self.preprocess_image(mtn_output)# normalization
         
@@ -123,28 +125,32 @@ class StudentModel(GeneralizedRCNN):
         if self.proposal_generator is not None:
             proposals, proposal_losses = self.proposal_generator(mtn_output, features, gt_instances)
         else:
-            assert "proposals" in csi_images[0]
-            proposals = [x["proposals"].to(self.device) for x in csi_images]
+            assert "proposals" in batched_inputs[0]
+            proposals = [x["proposals"].to(self.device) for x in batched_inputs]
             proposal_losses = {}
         
-        _,detector_losses = self.roi_heads(csi_images, features, proposals, gt_instances)
-      
+        _,detector_losses = self.roi_heads(mtn_output, features, proposals, gt_instances)
+
+        if self.vis_period > 0:
+            storage = get_event_storage()
+            if storage.iter % self.vis_period == 0:
+                self.visualize_training(batched_inputs, proposals)
         losses = {}
         
         losses.update(transfer_loss)
-        losses.update(proposal_losses)
         losses.update(detector_losses)
+        losses.update(proposal_losses)
        
-        return losses, features
+        return losses
        
        
         
-
+    def preprocess_mtn(self,batched_inputs: List[Dict[str, torch.Tensor]]):
+        pass
         
         
         
-        
-    def _calculate_transfer_learning_loss(teacher_features, student_features):
+    def _calculate_transfer_learning_loss(self,teacher_features, student_features):
         loss = 0.0
         for key in ['P2', 'P3', 'P4', 'P5']:
             teacher_feature = teacher_features[key]
@@ -155,21 +161,53 @@ class StudentModel(GeneralizedRCNN):
         
         
 
-    def preprocess_csi(self,batch_inputs:List[Dict[str,torch.Tensor]]):#input should be batch or single rgb data?
-        mean = self.csi_mean
-        std = self.csi_std
-        #return data should be tensor shape
-        return csi
-        pass
-    
+
 
      
     def inference(
         self,
-        batched_mtn: List[Dict[str, torch.Tensor]],
+        batched_inputs: List[Dict[str, torch.Tensor]],
         detected_instances: Optional[List[Instances]] = None,
         do_postprocess: bool = True,
     ):
+        """
+        Run inference on the given inputs.
+
+        Args:
+            batched_inputs (list[dict]): same as in :meth:`forward`
+            detected_instances (None or list[Instances]): if not None, it
+                contains an `Instances` object per image. The `Instances`
+                object contains "pred_boxes" and "pred_classes" which are
+                known boxes in the image.
+                The inference will then skip the detection of bounding boxes,
+                and only predict other per-ROI outputs.
+            do_postprocess (bool): whether to apply post-processing on the outputs.
+
+        Returns:
+            When do_postprocess=True, same as in :meth:`forward`.
+            Otherwise, a list[Instances] containing raw network outputs.
+        """
         assert not self.training
 
-        images = self.preprocess_image(batched_mtn)
+
+        csi = [x["csi"].to(self.device) for x in batched_inputs]
+        
+        mtn_output = self.mtn(csi)
+
+       
+        features = self.backbone(mtn_output)
+
+        if detected_instances is None:
+            if self.proposal_generator is not None:
+                proposals, _ = self.proposal_generator(mtn_output, features, None)
+            else:
+                assert "proposals" in batched_inputs[0]
+                proposals = [x["proposals"].to(self.device) for x in batched_inputs]
+
+            results, _ = self.roi_heads(mtn_output, features, proposals, None)
+        else:
+            detected_instances = [x.to(self.device) for x in detected_instances]
+            results = self.roi_heads.forward_with_given_boxes(features, detected_instances)
+
+       
+        return results

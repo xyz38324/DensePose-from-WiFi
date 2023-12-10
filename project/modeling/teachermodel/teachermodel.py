@@ -11,41 +11,20 @@ from detectron2.modeling import build_proposal_generator,build_roi_heads,Backbon
 @Teacher_Model_REGISTRY.register()
 class TeacherModel(GeneralizedRCNN):
     @configurable
-    def __init__(
-        self,
-        *, 
-        backbone :Backbone,
-        proposal_generator : nn.Module,
-        roi_heads :nn.Module,
-        pixel_mean: Tuple[float],
-        pixel_std: Tuple[float],
-        input_format: Optional[str] = None,
-        vis_period: int = 0,
-    ):
+    def __init__(self,cfg):
         # 调用GeneralizedRCNN的初始化方法
         super().__init__(
-            backbone=backbone,
-            proposal_generator=proposal_generator,
-            roi_heads=roi_heads,
-            pixel_mean=pixel_mean,
-            pixel_std=pixel_std,
-            input_format=input_format,
-            vis_period=vis_period
+            backbone=build_backbone(cfg),
+            proposal_generator=build_proposal_generator(cfg, backbone.output_shape()),
+            roi_heads=build_roi_heads(cfg, backbone.output_shape()),
+            pixel_mean=cfg.MODEL.PIXEL_MEAN,
+            pixel_std=cfg.MODEL.PIXEL_STD,
+            input_format=cfg.INPUT.FORMAT,
+            vis_period=cfg.VIS_PERIOD,
         )
-        self.backbone=backbone
+        
 
-    @classmethod
-    def from_config(cls,cfg):
-        backbone = build_backbone(cfg)
-        return {
-            "backbone": backbone,
-            "proposal_generator": build_proposal_generator(cfg, backbone.output_shape()),
-            "roi_heads": build_roi_heads(cfg, backbone.output_shape()),
-            "input_format": cfg.INPUT.FORMAT,
-            "vis_period": cfg.VIS_PERIOD,
-            "pixel_mean": cfg.MODEL.PIXEL_MEAN,
-            "pixel_std": cfg.MODEL.PIXEL_STD,
-        }
+   
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
 
         images = self.preprocess_image(batched_inputs)

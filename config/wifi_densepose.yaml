@@ -8,4 +8,6 @@ MODEL:
     NAME: "ModalityTranslationNetwork"
   KP_DP_RF_HEAD.NAME:
     NAME: "Kp_Dp_Refinement_Head"
+  ROI_HEAD:
+    NAME: "WiFi_ROI_Head"
 
