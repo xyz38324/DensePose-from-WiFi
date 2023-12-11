@@ -11,3 +11,24 @@ MODEL:
   ROI_HEAD:
     NAME: "WiFi_ROI_Head"
 
+
+  LOSS:
+    cls: 1
+    box: 1
+    dp: 0.6
+    kp: 0.3
+    tr: 0.1
+
+TEACHER:
+  _BASE_: "Base-DensePose-RCNN-FPN.yaml"
+  MODEL:
+    WEIGHTS: "detectron2://ImageNetPretrained/MSRA/R-50.pkl"
+    RESNETS:
+      DEPTH: 50
+  SOLVER:
+    MAX_ITER: 130000
+    STEPS: (100000, 120000)
+
+
+    
+

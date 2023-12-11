@@ -2,6 +2,15 @@ from detectron2.engine import SimpleTrainer
 import time
 import torch
 class CustomTrainer(SimpleTrainer):
+    def __init__(self,cfg, model, data_loader, optimizer):
+        super().__init__(model, data_loader, optimizer)
+        self.loss_cls = cfg.LOSS.cls
+        self.loss_box_reg = cfg.LOSS.box
+        self.loss_keypoint = cfg.LOSS.kp
+        self.loss_transfer = cfg.LOSS.tr
+        self.loss_densepose = cfg.LOSS.dp
+
+
     def run_step(self):
         """
         Implement the standard training logic described above.
@@ -29,6 +38,11 @@ class CustomTrainer(SimpleTrainer):
             losses = loss_dict
             loss_dict = {"total_loss": loss_dict}
         else:
+            loss_dict["loss_cls"] *= self.loss_cls
+            loss_dict["loss_box_reg"] *= self.loss_box_reg
+            loss_dict["loss_keypoint"] *= self.loss_keypoint
+            loss_dict["loss_transfer"] *= self.loss_transfer
+            loss_dict["loss_densepose"] *= self.loss_densepose
             losses = sum(loss_dict.values())
         if not self.zero_grad_before_forward:
             """

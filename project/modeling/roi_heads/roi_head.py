@@ -144,8 +144,8 @@ class WiFi_ROI_Head(ROIHeads):
 
             if len(proposals) > 0:
                 proposal_boxes = [x.proposal_boxes for x in proposals]
-                if self.use_decoder:
-                    features_list = [self.decoder(features_list)]
+                
+                features_list = [self.decoder(features_list)]
 
                 features_pooler = self.pooler(features_list,proposal_boxes)
 
@@ -159,15 +159,26 @@ class WiFi_ROI_Head(ROIHeads):
            
             pred_boxes = [x.pred_boxes for x in pred_instances]
 
-            if self.use_decoder:
-                features_list = [self.decoder(features_list)]
+            
+            features_list = [self.decoder(features_list)]
             features_pooler = self.pooler(features_list,pred_boxes)
            
             instances_keypoint_densepose = self.kp_dp_rf_head(features_pooler,pred_instances)
            
             return instances_keypoint_densepose
 
+    def forward_with_given_boxes(
+        self, features: Dict[str, torch.Tensor], instances: List[Instances]
+    ):
+        pred_boxes = [x.pred_boxes for x in instances]
 
+        features_list =[features[f] for f in self.in_features] 
+        features_list = [self.decoder(features_list)]
+        features_pooler = self.pooler(features_list,pred_boxes)
+        
+        instances_keypoint_densepose = self.kp_dp_rf_head(features_pooler,instances)
+        
+        return instances_keypoint_densepose
 
 
 
