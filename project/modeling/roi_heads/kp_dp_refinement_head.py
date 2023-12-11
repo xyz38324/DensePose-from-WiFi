@@ -2,8 +2,6 @@ from detectron2.modeling.roi_heads import KRCNNConvDeconvUpsampleHead
 from detectron2.layers import Conv2d, ConvTranspose2d
 from detectron2.modeling.roi_heads.keypoint_head import keypoint_rcnn_loss,keypoint_rcnn_inference
 import torch.nn as nn
-from typing import List
-from detectron2.structures import Instances
 from densepose.modeling import build_densepose_head,build_densepose_losses,build_densepose_predictor,build_densepose_embedder
 from densepose.modeling import densepose_inference
 from detectron2.config import configurable
@@ -21,6 +19,7 @@ class Kp_Dp_Refinement_Head(KRCNNConvDeconvUpsampleHead):
         num_keypoints,
         conv_dims,
         densepose_loss,
+        embedder,
         **kwargs
     ):
         # 首先调用父类的构造函数
@@ -40,7 +39,7 @@ class Kp_Dp_Refinement_Head(KRCNNConvDeconvUpsampleHead):
         self.densepose_head=densepose_head
         self.densepose_predictor = densepose_predictor
         self.densepose_losses = densepose_loss
-       
+        self.embedder  = embedder
     @classmethod
     def from_config(cls, cfg, input_shape):
     # 提取所有需要的配置参数
@@ -55,7 +54,7 @@ class Kp_Dp_Refinement_Head(KRCNNConvDeconvUpsampleHead):
             "densepose_head": densepose_head,
             "densepose_predictor": densepose_predictor,
             "densepose_losses":densepose_loss,
-            "embedder_cfg": embedder,
+            "embedder": embedder,
             # 其他需要的配置参数
         }
         return ret
@@ -68,23 +67,31 @@ class Kp_Dp_Refinement_Head(KRCNNConvDeconvUpsampleHead):
         refinement_keypoint = self.conv_layers_kp(merge)
         refinement_densepose = self.conv_layers_dp(merge)
 
-        keypoint_predictor_output = self.score_lowres(refinement_keypoint)
-
-        densepose_predictor_output = self.densepose_predictor(refinement_densepose)
-        densepose_loss_dict = self.densepose_losses(instances_keypoint_densepose,densepose_predictor_output,embedder=self.embedder)
+        
         if self.training:
             num_images = len(instances_keypoint_densepose)
             normalizer = (
                 None if self.loss_normalizer == "visible" else num_images * self.loss_normalizer
             )
+            keypoint_predictor_output = self.score_lowres(refinement_keypoint)
 
+            densepose_predictor_output = self.densepose_predictor(refinement_densepose)
+
+            densepose_loss_dict = self.densepose_losses(instances_keypoint_densepose,densepose_predictor_output,embedder=self.embedder)
             losses = keypoint_rcnn_loss(keypoint_predictor_output, instances_keypoint_densepose, normalizer=normalizer)* self.loss_weight
             losses.update(densepose_loss_dict)
-            return instances_keypoint_densepose,losses
+            return losses
         else:
+
+            if len(x)>0:
+                densepose_predictor_output=self.densepose_predictor(refinement_densepose)
+                keypoint_predictor_output = self.score_lowres(refinement_keypoint)
+            else:
+                densepose_predictor_output=None
+
             keypoint_rcnn_inference(keypoint_predictor_output, instances_keypoint_densepose)
             densepose_inference(densepose_predictor_output,instances_keypoint_densepose)
-            return instances_keypoint_densepose,{}
+            return instances_keypoint_densepose
 
     def layers(self, x):
 

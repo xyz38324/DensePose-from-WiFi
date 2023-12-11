@@ -15,7 +15,7 @@ from detectron2.modeling import FastRCNNOutputLayers
 from .build import build_dp_kp_rf_head,ROI_HEAD_REGISTRY
 
 
-from densepose.modeling import build_densepose_data_filter
+from densepose.modeling import build_densepose_data_filter,build_densepose_predictor,build_densepose_embedder,bu
   
     
 
@@ -30,7 +30,7 @@ class WiFi_ROI_Head(ROIHeads):
         self.densepose_data_filter = build_densepose_data_filter(cfg)
         self.use_decoder           = cfg.MODEL.ROI_DENSEPOSE_HEAD.DECODER_ON
         self.decoder = Decoder(cfg, input_shape, self.in_features)
-
+   
    
     def _init_kp_dp_rf_head(self,cfg,input_shape):
         self.kp_dp_rf_head = build_dp_kp_rf_head(cfg,input_shape)
@@ -128,59 +128,61 @@ class WiFi_ROI_Head(ROIHeads):
         del targets
 
 
-        # features_list = [features[f] for f in self.in_features]
+        features_list = [features[f] for f in self.in_features]
         if self.training:
             #box_head
             losses = self._forward_box(features,proposals)
             
-            #keypoint
-            instances_kp,_ =select_foreground_proposals(proposals,self.num_classes)
-            instances_kp = select_proposals_with_visible_keypoints(instances_kp)
-            features_kp = [features[f] for f in self.in_features]
-            boxes = [x.proposal_boxes if self.training else x.pred_boxes for x in instances_kp]
-            features_kp = self.pooler(features_kp,boxes)
+            
+            
+            proposals, _ = select_foreground_proposals(proposals, self.num_classes)
+            #densepose filter
+            features_list, proposals = self.densepose_data_filter(features_list, proposals)
 
-            #densepose (features,proposals)
-            features_list = [features[f] for f in self.in_features]
-            proposals_dp, _ = select_foreground_proposals(proposals, self.num_classes)
-            features_list, proposals_dp = self.densepose_data_filter(features_list, proposals_dp)
-            if len(proposals_dp) > 0:
-                proposal_boxes = [x.proposal_boxes for x in proposals_dp]
+            #proposal for densepose & keypoint
+            proposals = select_proposals_with_visible_keypoints(proposals)
 
+            if len(proposals) > 0:
+                proposal_boxes = [x.proposal_boxes for x in proposals]
                 if self.use_decoder:
                     features_list = [self.decoder(features_list)]
 
-                features_dp = self.pooler(features_list, proposal_boxes)
-            del targets, images
+                features_pooler = self.pooler(features_list,proposal_boxes)
 
-            instances_densepose_keypoint,losses = self.kp_dp_rf_head(features_kp,features_dp)
-        return instances_densepose_keypoint,losses
+                losses.update(self.kp_dp_rf_head(features_pooler,proposals))
+
+                return losses
+        else:
+
+
+            pred_instances = self._forward_box(features,proposals)
+           
+            pred_boxes = [x.pred_boxes for x in pred_instances]
+
+            if self.use_decoder:
+                features_list = [self.decoder(features_list)]
+            features_pooler = self.pooler(features_list,pred_boxes)
+           
+            instances_keypoint_densepose = self.kp_dp_rf_head(features_pooler,pred_instances)
+           
+            return instances_keypoint_densepose
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
  
-    def forward_with_given_boxes(
-        self, features: Dict[str, torch.Tensor], instances: List[Instances]
-    ):
-        """
-        Use the given boxes in `instances` to produce other (non-box) per-ROI outputs.
-
-        This is useful for downstream tasks where a box is known, but need to obtain
-        other attributes (outputs of other heads).
-        Test-time augmentation also uses this.
-
-        Args:
-            features: same as in `forward()`
-            instances (list[Instances]): instances to predict other outputs. Expect the keys
-                "pred_boxes" and "pred_classes" to exist.
-
-        Returns:
-            instances (list[Instances]):
-                the same `Instances` objects, with extra
-                fields such as `pred_masks` or `pred_keypoints`.
-        """
-
-        instances = super().forward_with_given_boxes(features, instances)
-        instances = self._forward_densepose(features, instances)
-        return instances
-    
+  
 
