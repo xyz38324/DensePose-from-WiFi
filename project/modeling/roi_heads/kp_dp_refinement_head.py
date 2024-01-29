@@ -26,8 +26,8 @@ class Kp_Dp_Refinement_Head(KRCNNConvDeconvUpsampleHead):
         super().__init__(input_shape, num_keypoints=num_keypoints, conv_dims=conv_dims, **kwargs)
 
         # 添加您自己的初始化逻辑
-        in_channels = input_shape.channels
         
+        in_channels = input_shape.channels
         self.conv_layers_kp= nn.Sequential(
             Conv2d(in_channels, in_channels, 3, stride=1, padding=1),
             Conv2d(in_channels, in_channels, 3, stride=1, padding=1)
@@ -42,8 +42,10 @@ class Kp_Dp_Refinement_Head(KRCNNConvDeconvUpsampleHead):
         self.embedder  = embedder
     @classmethod
     def from_config(cls, cfg, input_shape):
+        
+        in_channels = [input_shape[f].channels for f in self.in_features][0]
     # 提取所有需要的配置参数
-        densepose_head = build_densepose_head(cfg,input_shape.channels)
+        densepose_head = build_densepose_head(cfg,in_channels)
         densepose_predictor = build_densepose_predictor(cfg,densepose_head.n_out_channels)
         densepose_loss = build_densepose_losses(cfg)
         embedder = build_densepose_embedder(cfg)

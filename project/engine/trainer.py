@@ -1,20 +1,21 @@
 
-from densepose.engine import Trainer
+# from densepose.engine import Trainer
 from .customtrainer import CustomTrainer
 import logging
 from detectron2.engine.defaults import create_ddp_model
+from detectron2.engine import DefaultTrainer
+from detectron2.utils import comm
+from ..modeling import build_student_model
 
-from modeling import build_student_model
-class MyTrainer(Trainer):
+from ..modeling.studentmodel.studentmodel import Student_Model_REGISTRY,StudentModel
+from ..modeling.mtn.mtn import ModalityTranslationNetwork
+class MyTrainer(DefaultTrainer):
     def __init__(self, cfg):
-        # 调用父类的初始化方法
-        super().__init__(cfg)
-        model = self.build_model(cfg)
-        optimizer = self.build_optimizer(cfg, model)
-        data_loader = self.build_train_loader(cfg)
+        super().__init__(cfg)  # 调用 TrainerBase 的构造函数
+        
 
-        model = create_ddp_model(model, broadcast_buffers=False)
-        self._trainer = CustomTrainer(model, data_loader, optimizer)
+        self._trainer = CustomTrainer(cfg, self.model, self.data_loader, self.optimizer)
+
     @classmethod
     def build_model(cls, cfg):
         """

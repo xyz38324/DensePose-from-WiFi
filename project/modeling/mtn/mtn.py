@@ -3,7 +3,10 @@ import torch
 import torch.nn.functional as F
 
 from .build import ModalityTranslationNetwork_REGISTRY
-ModalityTranslationNetwork_REGISTRY.register()
+__all__ = ["ModalityTranslationNetwork"]
+
+
+@ModalityTranslationNetwork_REGISTRY.register()
 class ModalityTranslationNetwork(nn.Module):
     '''
     input data should be [       150                  1,       3]
@@ -12,7 +15,7 @@ class ModalityTranslationNetwork(nn.Module):
 
     '''
 
-    def __init__(self):
+    def __init__(self,cfg):
         super().__init__()
         
         # Define the MLPs for amplitude and phase

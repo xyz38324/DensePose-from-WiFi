@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Debug train_net",
+            "type": "python",
+            "request": "launch",
+            "program": "train_net.py",
+            "args": [
+                "--config-file", "configs/wifi_densepose.yaml",
+                "SOLVER.IMS_PER_BATCH", "2",
+                "SOLVER.BASE_LR", "0.0025"
+            ],
+            "console": "integratedTerminal"
+        }
+    ]
+}

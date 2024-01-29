@@ -1,6 +1,6 @@
 from detectron2.utils.registry import Registry
 import torch
-Student_Model_REGISTRY=Registry("Student_Model")
+Student_Model_REGISTRY=Registry("StudentModel")
 Student_Model_REGISTRY.__doc__="""
 Registry for Combined_Model, which contains ModalityTranslationNetwork and Densepose architecture,
 i.e. the whole model.
@@ -16,6 +16,7 @@ def build_student_model(cfg):
     Note that it does not load any weights from ``cfg``.
     """
     name = cfg.MODEL.STUDENT_MODEL
+    # print("注册表中的模型:", Student_Model_REGISTRY)
     model = Student_Model_REGISTRY.get(name)(cfg)
     model.to(torch.device(cfg.MODEL.DEVICE))
   

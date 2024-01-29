@@ -14,4 +14,5 @@ ROI_HEAD_REGISTRY.__doc__="""
 
 def build_roi_head(cfg,input_shape):
     name = cfg.MODEL.ROI_HEAD.NAME
+    print("注册表中的模型:", ROI_HEAD_REGISTRY)
     return ROI_HEAD_REGISTRY.get(name)(cfg,input_shape)

@@ -3,18 +3,20 @@ import torch
 from typing import Dict, List, Optional, Tuple
 from .build import Student_Model_REGISTRY
 from detectron2.modeling import  build_proposal_generator,Backbone
-from ..backbone import build_backbone
-from .build import Student_Model_REGISTRY
+from detectron2.modeling.backbone import Backbone,build_backbone
 from detectron2.config import configurable
-from ..mtn.build import build_mtn
+from ..mtn import build_mtn
 
 from detectron2.structures import ImageList,Instances
 
 from ..roi_heads import build_roi_head
-from ..teachermodel import build_teacher_model
+from detectron2.modeling import build_model
 import torch.nn.functional as F
 from detectron2.modeling import GeneralizedRCNN
 from detectron2.utils.events import get_event_storage
+
+
+__all__ = ["StudentModel"]
 @Student_Model_REGISTRY.register()
 class StudentModel(GeneralizedRCNN):
     """
@@ -68,9 +70,10 @@ class StudentModel(GeneralizedRCNN):
     @classmethod
     def from_config(cls,cfg):
         backbone = build_backbone(cfg)
-        teacher_model= build_teacher_model(cfg)
+        print(f"output_shape:{backbone.output_shape()}")
+        teacher_model= build_model(cfg)
         return {
-            "mtn":build_mtn,
+            "mtn":build_mtn(cfg),
             "backbone": backbone,
             "proposal_generator": build_proposal_generator(cfg, backbone.output_shape()),
             "roi_heads": build_roi_head(cfg, backbone.output_shape()),

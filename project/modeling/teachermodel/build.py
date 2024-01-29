@@ -12,6 +12,7 @@ def build_teacher_model(cfg):
     Note that it does not load any weights from ``cfg``.
     """
     name = cfg.MODEL.TEACHER_MODEL
+    # print("注册表中的模型:", Teacher_Model_REGISTRY)
     model = Teacher_Model_REGISTRY.get(name)(cfg)
     model.to(torch.device(cfg.MODEL.DEVICE))
   

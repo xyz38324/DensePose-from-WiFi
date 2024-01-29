@@ -15,16 +15,17 @@ from detectron2.modeling import FastRCNNOutputLayers
 from .build import build_dp_kp_rf_head,ROI_HEAD_REGISTRY
 
 
-from densepose.modeling import build_densepose_data_filter,build_densepose_predictor,build_densepose_embedder,bu
+from densepose.modeling import build_densepose_data_filter,build_densepose_predictor,build_densepose_embedder
   
     
 
 
 @ROI_HEAD_REGISTRY.register()
 class WiFi_ROI_Head(ROIHeads):
-    @configurable
+    
     def __init__(self, cfg, input_shape):
-        super().__init__(cfg, input_shape)
+        super().__init__(cfg)
+
         self._init_box_head(cfg, input_shape)
         self._init_kp_dp_rf_head(cfg, input_shape)
         self.densepose_data_filter = build_densepose_data_filter(cfg)
@@ -176,24 +177,6 @@ class WiFi_ROI_Head(ROIHeads):
         features_list = [self.decoder(features_list)]
         features_pooler = self.pooler(features_list,pred_boxes)
         
-        instances_keypoint_densepose = self.kp_dp_rf_head(features_pooler,instances)
+        instances_keypoint_densepose = self.kp_dp_rf_head(features_pooler,instances )
         
         return instances_keypoint_densepose
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- 
-  
-

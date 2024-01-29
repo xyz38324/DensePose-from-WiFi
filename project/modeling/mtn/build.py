@@ -11,8 +11,9 @@ The call should return a `nn.Module` object.
 
 def build_mtn(cfg):
     
-    name = cfg.MODEL.MTN
+    name = cfg.MODEL.MTN.NAME
     
+
     model  = ModalityTranslationNetwork_REGISTRY.get(name)(cfg)
     
     return model

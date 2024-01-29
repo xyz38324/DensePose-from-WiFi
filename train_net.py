@@ -1,4 +1,4 @@
-from  .project.engine import MyTrainer
+from project.engine.trainer import MyTrainer
 from datetime import timedelta
 
 import detectron2.utils.comm as comm
@@ -9,6 +9,7 @@ from detectron2.utils.file_io import PathManager
 from detectron2.utils.logger import setup_logger
 
 from densepose import add_densepose_config
+from project.engine.add_config import add_custom_config
 
 from densepose.modeling.densepose_checkpoint import DensePoseCheckpointer
 def setup(args):
@@ -17,8 +18,11 @@ def setup(args):
     """
     cfg = get_cfg()
     add_densepose_config(cfg)
+    add_custom_config(cfg)
+    
+  
     cfg.merge_from_file(args.config_file)
-    cfg.merge_from_list(args.opts)
+    # cfg.merge_from_list(args.opts)
     cfg.freeze()
     default_setup(cfg, args)
     # Setup logger for "densepose" module
