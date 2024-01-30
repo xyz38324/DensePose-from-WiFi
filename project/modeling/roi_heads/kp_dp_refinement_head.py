@@ -6,6 +6,7 @@ from densepose.modeling import build_densepose_head,build_densepose_losses,build
 from densepose.modeling import densepose_inference
 from detectron2.config import configurable
 from .build import KP_DP_RF_HEAD_REGISTRY
+from detectron2.layers import ShapeSpec
 
 @KP_DP_RF_HEAD_REGISTRY.register()
 class Kp_Dp_Refinement_Head(KRCNNConvDeconvUpsampleHead):
@@ -27,7 +28,7 @@ class Kp_Dp_Refinement_Head(KRCNNConvDeconvUpsampleHead):
 
         # 添加您自己的初始化逻辑
         
-        in_channels = input_shape.channels
+        in_channels = input_shape.channels*2
         self.conv_layers_kp= nn.Sequential(
             Conv2d(in_channels, in_channels, 3, stride=1, padding=1),
             Conv2d(in_channels, in_channels, 3, stride=1, padding=1)
@@ -36,6 +37,7 @@ class Kp_Dp_Refinement_Head(KRCNNConvDeconvUpsampleHead):
             Conv2d(in_channels, in_channels, 3, stride=1, padding=1),
             Conv2d(in_channels, in_channels, 3, stride=1, padding=1)
         )
+        
         self.densepose_head=densepose_head
         self.densepose_predictor = densepose_predictor
         self.densepose_losses = densepose_loss
@@ -43,22 +45,25 @@ class Kp_Dp_Refinement_Head(KRCNNConvDeconvUpsampleHead):
     @classmethod
     def from_config(cls, cfg, input_shape):
         
-        in_channels = [input_shape[f].channels for f in self.in_features][0]
-    # 提取所有需要的配置参数
+        in_features       = cfg.MODEL.ROI_HEADS.IN_FEATURES
+        in_channels = [input_shape[f].channels for f in in_features][0]
+        pooler_resolution = 28
         densepose_head = build_densepose_head(cfg,in_channels)
         densepose_predictor = build_densepose_predictor(cfg,densepose_head.n_out_channels)
         densepose_loss = build_densepose_losses(cfg)
         embedder = build_densepose_embedder(cfg)
-        ret = {
-            "input_shape": input_shape,
+        shape = ShapeSpec(
+                channels=in_channels, width=pooler_resolution, height=pooler_resolution
+            )
+        ret = super().from_config(cfg, shape)
+        
+        ret.update({
             "num_keypoints": cfg.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS,
-            "conv_dims": cfg.MODEL.ROI_KEYPOINT_HEAD.CONV_DIMS,
             "densepose_head": densepose_head,
             "densepose_predictor": densepose_predictor,
-            "densepose_losses":densepose_loss,
-            "embedder": embedder,
-            # 其他需要的配置参数
-        }
+            "densepose_loss": densepose_loss,
+            "embedder": embedder
+        })
         return ret
 
     def forward(self,x,instances_keypoint_densepose):

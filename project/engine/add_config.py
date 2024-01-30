@@ -25,8 +25,9 @@ def add_custom_config(cfg: CN):
     _C.MODEL.KP_DP_RF_HEAD.NAME = "Kp_Dp_Refinement_Head"
 
     # ROI头网络配置
-    _C.MODEL.ROI_HEAD = CN()
-    _C.MODEL.ROI_HEAD.NAME = "WiFi_ROI_Head"
+    _C.MODEL.STUDENT_ROI_HEAD = CN()
+    _C.MODEL.STUDENT_ROI_HEAD.NAME = "WiFi_ROI_Head"
+    
     _C.MODEL.ROI_HEADS.NAME = "DensePoseROIHeads"
     _C.MODEL.ROI_HEADS.IN_FEATURES = ["p2", "p3", "p4", "p5"]
     _C.MODEL.ROI_HEADS.NUM_CLASSES = 1
@@ -46,6 +47,10 @@ def add_custom_config(cfg: CN):
     _C.MODEL.RPN.POST_NMS_TOPK_TRAIN = 1000
     _C.MODEL.RPN.POST_NMS_TOPK_TEST = 1000
 
+    #csi setup
+    _C.CSI = CN()
+    _C.CSI.MEAN=None
+    _C.CSI.STD=None
     # 求解器配置
     _C.SOLVER.IMS_PER_BATCH = 16
     _C.SOLVER.BASE_LR = 0.01

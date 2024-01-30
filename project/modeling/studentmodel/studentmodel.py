@@ -18,7 +18,7 @@ from detectron2.utils.events import get_event_storage
 
 __all__ = ["StudentModel"]
 @Student_Model_REGISTRY.register()
-class StudentModel(GeneralizedRCNN):
+class StudentModel(nn.Module):
     """
     Generalized studentdmodel,
     1: ModilityTranslationNetwork, convert csi data to 3*720*1080 format and feed into densepose network
@@ -29,23 +29,22 @@ class StudentModel(GeneralizedRCNN):
     """
     @configurable
     def __init__(
-       
-        
         self,
         *,
         mtn:nn.Module,
         backbone: Backbone,
         proposal_generator: nn.Module,
         roi_heads: nn.Module,
+        input_format: Optional[str] = None,
+        vis_period: int = 0,
         pixel_mean: Tuple[float],
         pixel_std: Tuple[float],
-        input_format: Optional[str] = None,
-        #vis_period: int = 0,
-        csi_mean:Tuple[float],
-        csi_std:Tuple[float],
+        # csi_mean:None,
+        # csi_std:None,
         teacher_model:nn.Module,
-    ):
+    ):  
         super().__init__()
+
         self.mtn =  mtn      
         self.backbone = backbone
         self.proposal_generator = proposal_generator
@@ -70,19 +69,18 @@ class StudentModel(GeneralizedRCNN):
     @classmethod
     def from_config(cls,cfg):
         backbone = build_backbone(cfg)
-        print(f"output_shape:{backbone.output_shape()}")
         teacher_model= build_model(cfg)
         return {
             "mtn":build_mtn(cfg),
             "backbone": backbone,
-            "proposal_generator": build_proposal_generator(cfg, backbone.output_shape()),
+            "proposal_generator": build_proposal_generator(cfg, backbone.output_shape()),            
             "roi_heads": build_roi_head(cfg, backbone.output_shape()),
             "input_format": cfg.INPUT.FORMAT,
             "vis_period": cfg.VIS_PERIOD,
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
             "pixel_std": cfg.MODEL.PIXEL_STD,
-            "csi_mean":cfg.CSI.MEAN,
-            "csi_std":cfg.CSI_STD,
+            # "csi_mean":cfg.CSI.MEAN,
+            # "csi_std":cfg.CSI.STD,
             "teacher_model":teacher_model,
         }
      

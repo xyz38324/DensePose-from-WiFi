@@ -2,6 +2,9 @@ BOOTSTRAP_DATASETS: []
 BOOTSTRAP_MODEL:
   DEVICE: cuda
   WEIGHTS: ''
+CSI:
+  MEAN: null
+  STD: null
 CUDNN_BENCHMARK: false
 DATALOADER:
   ASPECT_RATIO_GROUPING: true
@@ -307,8 +310,6 @@ MODEL:
       ENABLED: false
       EPSILON: 0.01
       TYPE: iid_iso
-  ROI_HEAD:
-    NAME: WiFi_ROI_Head
   ROI_HEADS:
     BATCH_SIZE_PER_IMAGE: 512
     IN_FEATURES:
@@ -398,6 +399,8 @@ MODEL:
     NORM: GN
     NUM_CLASSES: 54
   STUDENT_MODEL: StudentModel
+  STUDENT_ROI_HEAD:
+    NAME: WiFi_ROI_Head
   WEIGHTS: ''
 OUTPUT_DIR: ./output
 SEED: -1
