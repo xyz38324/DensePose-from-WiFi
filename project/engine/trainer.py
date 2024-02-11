@@ -9,6 +9,10 @@ from ..modeling import build_student_model
 
 from ..modeling.studentmodel.studentmodel import Student_Model_REGISTRY,StudentModel
 from ..modeling.mtn.mtn import ModalityTranslationNetwork
+from ..dataloader.customdataloader import CustomDataset
+from torch.utils.data import DataLoader
+import torchvision.transforms as transforms
+
 class MyTrainer(DefaultTrainer):
     def __init__(self, cfg):
         super().__init__(cfg)  # 调用 TrainerBase 的构造函数
@@ -30,7 +34,20 @@ class MyTrainer(DefaultTrainer):
         logger.info("Model:\n{}".format(model))
         return model
 
+    @classmethod
+    def build_train_loader(cls, cfg):
+        images_dir = "/home/visier/mm_fi/MMFi_dataset/all_images"
+        annotations ="/home/visier/mm_fi/MMFi_dataset/all_images/kp_dump_results/all_annotations.json"
+        transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+        ])
+        dataset = CustomDataset(images_dir=images_dir, annotations=annotations, transform=transform)
         
+        # 创建DataLoader实例
+        data_loader = DataLoader(dataset, batch_size=cfg.SOLVER.IMS_PER_BATCH, shuffle=True, num_workers=cfg.DATALOADER.NUM_WORKERS)
+        
+        return data_loader
 
      
   

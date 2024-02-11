@@ -86,7 +86,7 @@ class StudentModel(nn.Module):
      
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
         """
-        batched_inputs: a list,
+        batched_inputs: a dic,
                 * csi 
                 * image: Tensor, image in (C, H, W) format.
                 * instances (optional): groundtruth :class:`Instances`
@@ -97,13 +97,13 @@ class StudentModel(nn.Module):
             return self.inference(batched_inputs)
         
         csi = [x["csi"].to(self.device) for x in batched_inputs]
-        
+        img = [x["image"].to(self.device) for x in batched_inputs]
         mtn_output = self.mtn(csi)
         assert mtn_output.shape == (3, 720, 1080), f"Unexpected output shape: {mtn_output.shape}"
 
         mtn_output = self.preprocess_mtn(batched_inputs)
         images = self.preprocess_image(batched_inputs)# normalization
-        # csi_images = self.preprocess_image(mtn_output)# normalization
+        
         
         
         if "instances" in batched_inputs[0]:
@@ -144,7 +144,18 @@ class StudentModel(nn.Module):
        
         return losses
        
-       
+    def preprocess_image(self, batched_inputs: List[Dict[str, torch.Tensor]]):
+        """
+        Normalize, pad and batch the input images.
+        """
+        images = [self._move_to_current_device(x["image"]) for x in batched_inputs]
+        # images = [(x - self.pixel_mean) / self.pixel_std for x in images]
+        images = ImageList.from_tensors(
+            images,
+            self.backbone.size_divisibility,
+            padding_constraints=self.backbone.padding_constraints,
+        )
+        return images  
         
     def preprocess_mtn(self,batched_inputs: List[Dict[str, torch.Tensor]]):
         pass
