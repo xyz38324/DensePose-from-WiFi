@@ -8,10 +8,11 @@
             "program": "train_net.py",
             "args": [
                 "--config-file", "configs/wifi_densepose.yaml",
-                "SOLVER.IMS_PER_BATCH", "2",
+                "SOLVER.IMS_PER_BATCH", "1",
                 "SOLVER.BASE_LR", "0.0025"
             ],
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "justMyCode": false
         }
     ]
 }

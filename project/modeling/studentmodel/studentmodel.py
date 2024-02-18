@@ -6,15 +6,15 @@ from detectron2.modeling import  build_proposal_generator,Backbone
 from detectron2.modeling.backbone import Backbone,build_backbone
 from detectron2.config import configurable
 from ..mtn import build_mtn
-
+from detectron2.layers import move_device_like
 from detectron2.structures import ImageList,Instances
-
+import torch.nn.functional as F
 from ..roi_heads import build_roi_head
 from detectron2.modeling import build_model
 import torch.nn.functional as F
-from detectron2.modeling import GeneralizedRCNN
+# from detectron2.modeling import GeneralizedRCNN
 from detectron2.utils.events import get_event_storage
-
+from ..teachermodel import build_teacher_model
 
 __all__ = ["StudentModel"]
 @Student_Model_REGISTRY.register()
@@ -69,7 +69,7 @@ class StudentModel(nn.Module):
     @classmethod
     def from_config(cls,cfg):
         backbone = build_backbone(cfg)
-        teacher_model= build_model(cfg)
+        teacher_model= build_teacher_model(cfg)
         return {
             "mtn":build_mtn(cfg),
             "backbone": backbone,
@@ -84,7 +84,7 @@ class StudentModel(nn.Module):
             "teacher_model":teacher_model,
         }
      
-    def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
+    def forward(self, batched_inputs):
         """
         batched_inputs: a dic,
                 * csi 
@@ -96,24 +96,33 @@ class StudentModel(nn.Module):
         if not self.training:
             return self.inference(batched_inputs)
         
-        csi = [x["csi"].to(self.device) for x in batched_inputs]
-        img = [x["image"].to(self.device) for x in batched_inputs]
-        mtn_output = self.mtn(csi)
-        assert mtn_output.shape == (3, 720, 1080), f"Unexpected output shape: {mtn_output.shape}"
+        
+        
+        csi_phase = [x["csi"]['phase'].to(self.device) for x in batched_inputs]
+        csi_phase_tensor = torch.stack(csi_phase)
+        csi_amp = [x["csi"]['amp'].to(self.device) for x in batched_inputs]
+        csi_amp_tensor = torch.stack(csi_amp)
+       
+        features_teacher = self.teacher_model(batched_inputs)
+        mtn_output = self.mtn(csi_amp_tensor,csi_phase_tensor)
+        
+        output_list=[]
+        for i in range(mtn_output.shape[0]):
+            current_tensor = mtn_output[i]
+            output_list.append(current_tensor.squeeze(0))
 
-        mtn_output = self.preprocess_mtn(batched_inputs)
-        images = self.preprocess_image(batched_inputs)# normalization
-        
-        
+        mtn_image = self.preprocess_mtn(output_list)
+
         
         if "instances" in batched_inputs[0]:
             gt_instances = [x["instances"].to(self.device) for x in batched_inputs]
         else:
             gt_instances = None
 
-
-        features = self.backbone(mtn_output)
-        features_teacher = self.teacher_model(images.tensor)
+       
+        features = self.backbone(mtn_image.tensor)
+       
+        
         transfer_loss = self._calculate_transfer_learning_loss(features_teacher,features)
         """{
             "p2": <tensor of shape [batch_size, out_channels, H/4, W/4]>,
@@ -124,50 +133,56 @@ class StudentModel(nn.Module):
         """
         
         if self.proposal_generator is not None:
-            proposals, proposal_losses = self.proposal_generator(mtn_output, features, gt_instances)
+            proposals, proposal_losses = self.proposal_generator(mtn_image, features, gt_instances)
         else:
             assert "proposals" in batched_inputs[0]
             proposals = [x["proposals"].to(self.device) for x in batched_inputs]
             proposal_losses = {}
         
-        _,detector_losses = self.roi_heads(mtn_output, features, proposals, gt_instances)
+        detector_losses = self.roi_heads(mtn_image, features, proposals, gt_instances)
 
-        if self.vis_period > 0:
-            storage = get_event_storage()
-            if storage.iter % self.vis_period == 0:
-                self.visualize_training(batched_inputs, proposals)
+        
         losses = {}
         
-        losses.update(transfer_loss)
-        losses.update(detector_losses)
+        losses.update({'loss_transfer': transfer_loss})
         losses.update(proposal_losses)
+        losses.update(detector_losses)
+        
        
         return losses
        
-    def preprocess_image(self, batched_inputs: List[Dict[str, torch.Tensor]]):
+   
+    
+    def preprocess_mtn(self, mtn_output: List[Dict[str, torch.Tensor]]):
         """
         Normalize, pad and batch the input images.
         """
-        images = [self._move_to_current_device(x["image"]) for x in batched_inputs]
-        # images = [(x - self.pixel_mean) / self.pixel_std for x in images]
+       
+
         images = ImageList.from_tensors(
-            images,
+            mtn_output,
             self.backbone.size_divisibility,
             padding_constraints=self.backbone.padding_constraints,
         )
-        return images  
+        return images 
         
-    def preprocess_mtn(self,batched_inputs: List[Dict[str, torch.Tensor]]):
-        pass
-        
+    @property
+    def device(self):
+        return self.pixel_mean.device
+    def _move_to_current_device(self, x):
+        return move_device_like(x, self.pixel_mean)
         
         
     def _calculate_transfer_learning_loss(self,teacher_features, student_features):
         loss = 0.0
-        for key in ['P2', 'P3', 'P4', 'P5']:
+        for key in ['p5','p4','p3', 'p2']:
             teacher_feature = teacher_features[key]
+            
             student_feature = student_features[key]
-            loss += F.mse_loss(student_feature, teacher_feature)
+            teacher_feature_downsampled = F.interpolate(teacher_feature, size=student_feature.shape[-2:], mode='nearest')
+            if torch.isnan(teacher_feature_downsampled).any() or torch.isnan(student_feature).any():
+                print("存在NaN值")
+            loss += F.mse_loss(student_feature, teacher_feature_downsampled)
 
         return loss
         

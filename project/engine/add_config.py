@@ -9,13 +9,15 @@ def add_custom_config(cfg: CN):
     # 基本模型配置
     _C.MODEL.STUDENT_MODEL = ""
     # _C.MODEL.TEACHER_MODEL = "GeneralizedRCNN"
-    _C.MODEL.META_ARCHITECTURE = "GeneralizedRCNN"
+    # _C.MODEL.META_ARCHITECTURE = "GeneralizedRCNN"
     _C.MODEL.BACKBONE.NAME = "build_resnet_fpn_backbone"
     _C.MODEL.RESNETS.OUT_FEATURES = ["res2", "res3", "res4", "res5"]
     _C.MODEL.FPN.IN_FEATURES = ["res2", "res3", "res4", "res5"]
     _C.MODEL.ANCHOR_GENERATOR.SIZES = [[32], [64], [128], [256], [512]]
     _C.MODEL.ANCHOR_GENERATOR.ASPECT_RATIOS = [[0.5, 1.0, 2.0]]
 
+    _C.MODEL.TEACHER_MODEL=CN()
+    _C.MODEL.TEACHER_MODEL.NAME = "TeacherModel"
     # 模态转换网络配置
     _C.MODEL.MTN = CN()
     _C.MODEL.MTN.NAME = "ModalityTranslationNetwork"

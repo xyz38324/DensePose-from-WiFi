@@ -1,8 +1,8 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
+
 from detectron2.layers import ShapeSpec
 from detectron2.utils.registry import Registry
+
 from detectron2.modeling.backbone import Backbone
-# from .fpn import FPN
 
 BACKBONE_REGISTRY = Registry("BACKBONE")
 BACKBONE_REGISTRY.__doc__ = """
@@ -16,7 +16,6 @@ The registered object must be a callable that accepts two arguments:
 Registered object must return instance of :class:`Backbone`.
 """
 
-
 def build_backbone(cfg, input_shape=None):
     """
     Build a backbone from `cfg.MODEL.BACKBONE.NAME`.
@@ -28,7 +27,7 @@ def build_backbone(cfg, input_shape=None):
         input_shape = ShapeSpec(channels=len(cfg.MODEL.PIXEL_MEAN))
 
     backbone_name = cfg.MODEL.BACKBONE.NAME
-    # print("注册表中的模型:", BACKBONE_REGISTRY)
+    print("注册表中的模型:", BACKBONE_REGISTRY)
     backbone = BACKBONE_REGISTRY.get(backbone_name)(cfg, input_shape)
     assert isinstance(backbone, Backbone)
     return backbone

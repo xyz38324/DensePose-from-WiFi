@@ -13,7 +13,7 @@ from detectron2.modeling.roi_heads import build_box_head
 from detectron2.modeling.roi_heads.roi_heads import select_proposals_with_visible_keypoints
 from detectron2.modeling import FastRCNNOutputLayers
 from .build import build_dp_kp_rf_head,ROI_HEAD_REGISTRY
-
+from detectron2.structures import Boxes
 
 from densepose.modeling import build_densepose_data_filter,build_densepose_predictor,build_densepose_embedder
   
@@ -26,20 +26,22 @@ class WiFi_ROI_Head(ROIHeads):
     def __init__(self, cfg, input_shape):
         super().__init__(cfg)
 
-        self._init_box_head(cfg, input_shape)
+        ret = self._init_box_head(cfg, input_shape)
         self._init_kp_dp_rf_head(cfg, input_shape)
         self.densepose_data_filter = build_densepose_data_filter(cfg)
         self.use_decoder           = cfg.MODEL.ROI_DENSEPOSE_HEAD.DECODER_ON
         self.decoder = Decoder(cfg, input_shape, self.in_features)
-   
-   
+        self.in_features = self.box_in_features=ret['box_in_features']
+        self.shared_pooler = ret['box_pooler']
+        self.box_head=ret['box_head']
+        self.box_predictor=ret['box_predictor']
     def _init_kp_dp_rf_head(self,cfg,input_shape):
         self.kp_dp_rf_head = build_dp_kp_rf_head(cfg,input_shape)
-      
+       
     
     def _init_box_head(self, cfg, input_shape):
         in_features       = cfg.MODEL.ROI_HEADS.IN_FEATURES
-        pooler_resolution = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
+        pooler_resolution = 28#cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
         pooler_scales     = tuple(1.0 / input_shape[k].stride for k in in_features)
         sampling_ratio    = cfg.MODEL.ROI_BOX_HEAD.POOLER_SAMPLING_RATIO
         pooler_type       = cfg.MODEL.ROI_BOX_HEAD.POOLER_TYPE
@@ -101,13 +103,7 @@ class WiFi_ROI_Head(ROIHeads):
         if self.training:
             losses = self.box_predictor.losses(predictions, proposals)
             # proposals is modified in-place below, so losses must be computed first.
-            if self.train_on_pred_boxes:
-                with torch.no_grad():
-                    pred_boxes = self.box_predictor.predict_boxes_for_gt_classes(
-                        predictions, proposals
-                    )
-                    for proposals_per_image, pred_boxes_per_image in zip(proposals, pred_boxes):
-                        proposals_per_image.proposal_boxes = Boxes(pred_boxes_per_image)
+            
             return losses
         else:
             pred_instances, _ = self.box_predictor.inference(predictions, proposals)
@@ -141,14 +137,14 @@ class WiFi_ROI_Head(ROIHeads):
             features_list, proposals = self.densepose_data_filter(features_list, proposals)
 
             #proposal for densepose & keypoint
-            proposals = select_proposals_with_visible_keypoints(proposals)
+            # proposals = select_proposals_with_visible_keypoints(proposals)
 
             if len(proposals) > 0:
                 proposal_boxes = [x.proposal_boxes for x in proposals]
                 
-                features_list = [self.decoder(features_list)]
+                # features_list = [self.decoder(features_list)]
 
-                features_pooler = self.pooler(features_list,proposal_boxes)
+                features_pooler = self.pooler(features_list,proposal_boxes)#这里pooler 注意大小
 
                 losses.update(self.kp_dp_rf_head(features_pooler,proposals))
 

@@ -19,8 +19,11 @@ DATASETS:
   PRECOMPUTED_PROPOSAL_TOPK_TRAIN: 2000
   PROPOSAL_FILES_TEST: []
   PROPOSAL_FILES_TRAIN: []
-  TEST: []
-  TRAIN: []
+  TEST:
+  - densepose_coco_2014_minival
+  TRAIN:
+  - densepose_coco_2014_train
+  - densepose_coco_2014_valminusminival
   WHITELISTED_CATEGORIES: {}
 DENSEPOSE_EVALUATION:
   DISTRIBUTED_INFERENCE: true
@@ -59,7 +62,7 @@ LOSS:
   cls: 1.2
   dp: 0.6
   kp: 0.3
-  tr: 0.1
+  tr: 1.0e-05
 MODEL:
   ANCHOR_GENERATOR:
     ANGLES:
@@ -135,7 +138,7 @@ MODEL:
       - 256
       NUM_MODULES: 3
     STEM_INPLANES: 64
-  KEYPOINT_ON: false
+  KEYPOINT_ON: true
   KP_DP_RF_HEAD:
     NAME: Kp_Dp_Refinement_Head
   LOAD_PROPOSALS: false
@@ -252,7 +255,7 @@ MODEL:
     USE_FED_LOSS: false
     USE_SIGMOID_CE: false
   ROI_DENSEPOSE_HEAD:
-    COARSE_SEGM_TRAINED_BY_MASKS: true
+    COARSE_SEGM_TRAINED_BY_MASKS: false
     CONV_HEAD_DIM: 512
     CONV_HEAD_KERNEL: 3
     CSE:
@@ -401,6 +404,8 @@ MODEL:
   STUDENT_MODEL: StudentModel
   STUDENT_ROI_HEAD:
     NAME: WiFi_ROI_Head
+  TEACHER_MODEL:
+    NAME: TeacherModel
   WEIGHTS: ''
 OUTPUT_DIR: ./output
 SEED: -1

@@ -34,16 +34,19 @@ class CustomTrainer(SimpleTrainer):
         If you want to do something with the losses, you can wrap the model.
         """
         loss_dict = self.model(data)
-        if isinstance(loss_dict, torch.Tensor):
-            losses = loss_dict
-            loss_dict = {"total_loss": loss_dict}
-        else:
-            loss_dict["loss_cls"] *= self.loss_cls
-            loss_dict["loss_box_reg"] *= self.loss_box_reg
-            loss_dict["loss_keypoint"] *= self.loss_keypoint
-            loss_dict["loss_transfer"] *= self.loss_transfer
-            loss_dict["loss_densepose"] *= self.loss_densepose
-            losses = sum(loss_dict.values())
+        
+        loss_dict["loss_cls"] *= self.loss_cls
+        loss_dict["loss_box_reg"] *= self.loss_box_reg
+        loss_dict["loss_keypoint"] *= self.loss_keypoint
+        loss_dict["loss_transfer"] *= self.loss_transfer
+        loss_dict["loss_densepose"] = self.loss_densepose*(loss_dict['loss_densepose_U']+loss_dict['loss_densepose_V']
+                                                            +loss_dict['loss_densepose_I']+loss_dict['loss_densepose_S'])
+        del loss_dict['loss_densepose_U']
+        del loss_dict['loss_densepose_V']
+        del loss_dict['loss_densepose_I']
+        del loss_dict['loss_densepose_S']
+        
+        losses = sum(loss_dict.values())
         if not self.zero_grad_before_forward:
             """
             If you need to accumulate gradients or do something similar, you can
@@ -62,9 +65,12 @@ class CustomTrainer(SimpleTrainer):
         else:
             self._write_metrics(loss_dict, data_time)
 
-        """
-        If you need gradient clipping/scaling or other processing, you can
-        wrap the optimizer with your custom `step()` method. But it is
-        suboptimal as explained in https://arxiv.org/abs/2006.15704 Sec 3.2.4
-        """
+       
         self.optimizer.step()
+
+    @property
+    def _data_loader_iter(self):
+        # only create the data loader iterator when it is used
+        if self._data_loader_iter_obj is None:
+            self._data_loader_iter_obj = iter(self.data_loader)
+        return self._data_loader_iter_obj

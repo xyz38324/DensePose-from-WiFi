@@ -21,20 +21,26 @@ class ModalityTranslationNetwork(nn.Module):
         # Define the MLPs for amplitude and phase
         self.amplitude_encoder = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(150 * 1 * 3, 1024),
-            nn.Linear(1024, 512)
+            nn.Linear(3420,2048),
+            nn.ReLU(),
+            nn.Linear(2048, 1024),
+            nn.ReLU(),
         )
         
         self.phase_encoder = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(150 * 1 * 3, 1024),
-            nn.Linear(1024,512)
+            nn.Linear(3420, 2048),
+            nn.ReLU(),
+            nn.Linear(2048,1024),
+            nn.ReLU()
         )
         
         # Define the fusion MLP
         self.fusion_mlp = nn.Sequential(
-            nn.Linear(512 * 2, 1024),
-            nn.Linear(1024, 576),
+            nn.Linear(1024* 2, 2048),
+            nn.ReLU(),
+            nn.Linear(2048, 576),
+            nn.ReLU(),
         )
         
         # Define the convolution blocks
@@ -81,13 +87,10 @@ class ModalityTranslationNetwork(nn.Module):
         # Process through deconvolution layers
         deconv_output = self.deconv_layers(conv_output)
 
-        target_height = 1080
-        target_width = 720
+        target_height = 992
+        target_width = 736
         # For a center crop
         resized_output = F.interpolate(deconv_output, size=(target_height, target_width), mode='bilinear', align_corners=False)
-        # start_dim3 = (deconv_output.size(2) - 720) // 2  # Center crop in dim3
-        # start_dim4 = (deconv_output.size(3) - 1080) // 2  # Center crop in dim4
-        # cropped_tensor = deconv_output[:, :, start_dim3:start_dim3+720, start_dim4:start_dim4+1080]
-
+        
         
         return resized_output

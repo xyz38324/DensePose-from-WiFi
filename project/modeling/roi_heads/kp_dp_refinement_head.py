@@ -7,7 +7,7 @@ from densepose.modeling import densepose_inference
 from detectron2.config import configurable
 from .build import KP_DP_RF_HEAD_REGISTRY
 from detectron2.layers import ShapeSpec
-
+# from densepose.modeling.losses.chart
 @KP_DP_RF_HEAD_REGISTRY.register()
 class Kp_Dp_Refinement_Head(KRCNNConvDeconvUpsampleHead):
     @configurable
@@ -85,8 +85,13 @@ class Kp_Dp_Refinement_Head(KRCNNConvDeconvUpsampleHead):
             densepose_predictor_output = self.densepose_predictor(refinement_densepose)
 
             densepose_loss_dict = self.densepose_losses(instances_keypoint_densepose,densepose_predictor_output,embedder=self.embedder)
-            losses = keypoint_rcnn_loss(keypoint_predictor_output, instances_keypoint_densepose, normalizer=normalizer)* self.loss_weight
+            keypopint_loss= keypoint_rcnn_loss(keypoint_predictor_output, instances_keypoint_densepose, normalizer=normalizer)* self.loss_weight
+
+            losses={}
+            
             losses.update(densepose_loss_dict)
+            losses.update({'loss_keypoint': keypopint_loss})
+            
             return losses
         else:
 
