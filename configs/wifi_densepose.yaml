@@ -36,6 +36,9 @@ LOSS:
 CSI:
   MEAN: 
   STD: 
+Annotation:
+  images_dir: "/home/visier/mm_fi/MMFi_dataset/all_images"
+  annotations: 
 
 
 

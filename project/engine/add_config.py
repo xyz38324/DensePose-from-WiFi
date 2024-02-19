@@ -49,6 +49,9 @@ def add_custom_config(cfg: CN):
     _C.MODEL.RPN.POST_NMS_TOPK_TRAIN = 1000
     _C.MODEL.RPN.POST_NMS_TOPK_TEST = 1000
 
+    _C.Annotation = CN()
+    _C.Annotation.images_dir=None
+    _C.Annotation.annotations=None
     #csi setup
     _C.CSI = CN()
     _C.CSI.MEAN=None

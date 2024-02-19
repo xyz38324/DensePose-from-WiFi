@@ -42,8 +42,8 @@ class MyTrainer(DefaultTrainer):
 
     @classmethod
     def build_train_loader(cls, cfg):
-        images_dir = "/home/visier/mm_fi/MMFi_dataset/all_images"
-        annotations ="/home/visier/mm_fi/MMFi_dataset/all_images/kp_dump_results/datasets_anno.json"
+        images_dir = cfg.Annotation.images_dir
+        annotations =cfg.Annotation.annotations
         result = utils.build_augmentation(cfg, True)
         random_rotation = T.RandomRotation( [0], expand=False, sample_style="choice"
         )
@@ -52,8 +52,8 @@ class MyTrainer(DefaultTrainer):
         mapper = DatasetMapper(cfg,result)
         dataset = CustomDataset(images_dir=images_dir, annotations=annotations,transform=mapper)
         
-        # 创建DataLoader实例
-        data_loader = DataLoader(dataset,shuffle=True, collate_fn=custom_collate_fn,num_workers=cfg.DATALOADER.NUM_WORKERS,batch_size=2)#cfg.SOLVER.IMS_PER_BATCH)
+      
+        data_loader = DataLoader(dataset,shuffle=True, collate_fn=custom_collate_fn,num_workers=cfg.DATALOADER.NUM_WORKERS,batch_size=cfg.SOLVER.IMS_PER_BATCH)
                 
         return data_loader
     

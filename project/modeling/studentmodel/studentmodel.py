@@ -181,7 +181,7 @@ class StudentModel(nn.Module):
             student_feature = student_features[key]
             teacher_feature_downsampled = F.interpolate(teacher_feature, size=student_feature.shape[-2:], mode='nearest')
             if torch.isnan(teacher_feature_downsampled).any() or torch.isnan(student_feature).any():
-                print("存在NaN值")
+                print("exist Nan")
             loss += F.mse_loss(student_feature, teacher_feature_downsampled)
 
         return loss
