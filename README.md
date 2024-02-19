@@ -1,0 +1,1 @@
+In the `wifi_densepose.yaml` file, there is a setting named `Annotation.images_dir`, which specifies the storage location of the original dataset. The dataset should be organized in the root directory as follows: `E01/S01/A01/rgb/frame001.png`. Set the root directory for the annotation files in `Annotation.annotations`.
